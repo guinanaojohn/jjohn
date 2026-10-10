@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseFlow — Freelancer Cash Flow & Payment Alerts</title>
+  <!-- Tailwind CSS -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom scrollbar and animations */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .animate-pulse-subtle { animation: pulse-slow 3s infinite ease-in-out; }
+    .badge-overdue { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-pending { background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-paid { background-color: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-draft { background-color: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+  </style>
+</head>
+<body class="bg-[var(--background,#0f172a)] text-[var(--foreground,#f8fafc)] min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Top Notification Alert Banner (Dynamic) -->
+  <div id="urgentAlertBanner" class="hidden bg-gradient-to-r from-red-950/80 via-amber-950/70 to-red-950/80 border-b border-red-500/30 px-4 py-2.5 text-xs text-red-200 transition-all duration-300">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="flex h-2.5 w-2.5 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+        </span>
+        <strong class="font-semibold text-red-100 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-red-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span id="urgentAlertCount">2 Overdue Invoices Need Immediate Attention</span>
+        </strong>
+        <span class="text-red-300/80 hidden sm:inline" id="urgentAlertText">— Total overdue receivables: $3,250.00</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openRemindersForOverdue()" class="bg-red-600 hover:bg-red-500 text-white font-medium px-3 py-1 rounded text-xs transition shadow-sm flex items-center gap-1">
+          <span>Send Reminders</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+        <button onclick="dismissBanner()" class="text-red-400 hover:text-red-200 p-1" title="Dismiss banner">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="border-b border-[var(--border,#334155)] bg-[var(--card,#1e293b)] sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Logo & Branding -->
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base sm:text-lg tracking-tight text-[var(--foreground,#f8fafc)]">PulseFlow</h1>
+            <span class="text-[12px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">Freelance OS</span>
+          </div>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Cash Flow Forecast & Real-Time Alerts</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="hidden md:flex items-center gap-1 bg-[var(--background,#0f172a)]/60 p-1 rounded-xl border border-[var(--border,#334155)]">
+        <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition bg-blue-600 text-white shadow">
+          Overview
+        </button>
+        <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-[var(--muted-foreground,#94a3b8)] hover:text-[var(--foreground,#f8fafc)]">
+          Cash Runway & Forecast
+        </button>
+        <button onclick="switchTab('invoices')" id="tab-invoices" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-[var(--muted-foreground,#94a3b8)] hover:text-[var(--foreground,#f8fafc)] relative">
+          Invoices
+          <span id="invoiceBadgeCount" class="ml-1 bg-red-500 text-white rounded-full px-1.5 py-0.2 text-[12px] font-bold">2</span>
+        </button>
+        <button onclick="switchTab('expenses')" id="tab-expenses" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-[var(--muted-foreground,#94a3b8)] hover:text-[var(--foreground,#f8fafc)]">
+          Subscriptions & Expenses
+        </button>
+        <button onclick="switchTab('clients')" id="tab-clients" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-[var(--muted-foreground,#94a3b8)] hover:text-[var(--foreground,#f8fafc)]">
+          Client Health
+        </button>
+      </nav>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <!-- Currency Selector -->
+        <select id="currencySelector" onchange="changeCurrency(this.value)" class="bg-[var(--background,#0f172a)] text-[var(--foreground,#f8fafc)] border border-[var(--border,#334155)] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="CAD">CAD ($)</option>
+          <option value="AUD">AUD ($)</option>
+        </select>
+
+        <!-- Alerts Bell with Popover -->
+        <button onclick="toggleAlertsDrawer()" class="relative p-2 rounded-lg bg-[var(--background,#0f172a)] hover:bg-[var(--background,#0f172a)]/80 border border-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] transition" title="View Alerts">
+          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+          <span id="alertsTotalBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[12px] font-bold rounded-full w-4 h-4 flex items-center justify-center">3</span>
+        </button>
+
+        <!-- New Invoice CTA -->
+        <button onclick="openNewInvoiceModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-3.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm shadow-blue-500/25">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span class="hidden sm:inline">New Invoice</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Nav Bar -->
+    <div class="md:hidden flex items-center justify-around border-t border-[var(--border,#334155)] px-2 py-2 overflow-x-auto text-xs">
+      <button onclick="switchTab('overview')" class="tab-btn px-2.5 py-1 rounded text-blue-400 font-medium">Overview</button>
+      <button onclick="switchTab('cashflow')" class="tab-btn px-2.5 py-1 rounded text-[var(--muted-foreground,#94a3b8)]">Cash Flow</button>
+      <button onclick="switchTab('invoices')" class="tab-btn px-2.5 py-1 rounded text-[var(--muted-foreground,#94a3b8)]">Invoices</button>
+      <button onclick="switchTab('expenses')" class="tab-btn px-2.5 py-1 rounded text-[var(--muted-foreground,#94a3b8)]">Expenses</button>
+      <button onclick="switchTab('clients')" class="tab-btn px-2.5 py-1 rounded text-[var(--muted-foreground,#94a3b8)]">Clients</button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- KPI Metrics Grid -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Total Available Cash & Runway -->
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
+        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground,#94a3b8)] mb-2">
+          <span class="font-medium">Total Liquid Balance</span>
+          <span class="p-1 rounded-md bg-emerald-500/10 text-emerald-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpiLiquidBalance" class="text-2xl font-bold tracking-tight text-[var(--foreground,#f8fafc)]">$24,850.00</span>
+        </div>
+        <div class="mt-2.5 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5 text-emerald-400">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span id="kpiRunwayMonths" class="font-semibold">6.2 Months Runway</span>
+          </div>
+          <span class="text-[var(--muted-foreground,#94a3b8)]" title="Burn rate: $4,000/mo">Burn ~$4.0k/mo</span>
+        </div>
+      </div>
+
+      <!-- Expected Inflow (Next 30 Days) -->
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
+        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground,#94a3b8)] mb-2">
+          <span class="font-medium">Expected Inflow (30d)</span>
+          <span class="p-1 rounded-md bg-blue-500/10 text-blue-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
+          </span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpiExpectedInflow" class="text-2xl font-bold tracking-tight text-[var(--foreground,#f8fafc)]">$8,750.00</span>
+        </div>
+        <div class="mt-2.5 flex items-center justify-between text-xs">
+          <span class="text-blue-400 font-medium" id="kpiPendingCount">3 Invoices Scheduled</span>
+          <span class="text-[var(--muted-foreground,#94a3b8)]">Avg cycle 18d</span>
+        </div>
+      </div>
+
+      <!-- Overdue & At-Risk Receivables (ALERTS) -->
+      <div class="bg-[var(--card,#1e293b)] border border-red-500/30 rounded-2xl p-4 shadow-sm relative overflow-hidden group hover:border-red-500/60 transition">
+        <div class="absolute -right-3 -top-3 w-14 h-14 bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/20 transition"></div>
+        <div class="flex items-center justify-between text-xs text-red-400 mb-2">
+          <span class="font-medium flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Overdue Receivables
+          </span>
+          <span class="bg-red-500/20 text-red-400 font-semibold px-1.5 py-0.5 rounded text-[12px]" id="kpiOverdueCount">2 Invoices</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpiOverdueAmount" class="text-2xl font-bold tracking-tight text-red-400">$3,250.00</span>
+        </div>
+        <div class="mt-2.5 flex items-center justify-between text-xs">
+          <span class="text-red-300/80">Max: 14 days late</span>
+          <button onclick="switchTab('invoices'); filterInvoices('overdue');" class="text-xs text-red-400 underline hover:text-red-300 font-medium">Review & Chase &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Tax Reserve & Safety Buffer -->
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition">
+        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground,#94a3b8)] mb-2">
+          <span class="font-medium">Tax Safe-Harbor (25%)</span>
+          <span class="p-1 rounded-md bg-amber-500/10 text-amber-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="kpiTaxReserve" class="text-2xl font-bold tracking-tight text-[var(--foreground,#f8fafc)]">$6,212.50</span>
+        </div>
+        <div class="mt-2.5 flex items-center justify-between text-xs">
+          <span class="text-amber-400">Do Not Spend</span>
+          <span class="text-[var(--muted-foreground,#94a3b8)]">Safe to spend: <strong id="kpiSafeToSpend" class="text-emerald-400">$18,637.50</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 1: OVERVIEW TAB CONTENT -->
+    <div id="content-overview" class="space-y-6">
+
+      <!-- Real-time Payment Alerts Center & Action Grid -->
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border,#334155)]">
+          <div class="flex items-center gap-2.5">
+            <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-base font-semibold text-[var(--foreground,#f8fafc)]">Active Payment & Cash Flow Alerts</h2>
+              <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Automated detections for delinquent clients, upcoming milestones, and runway risks</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="markAllAlertsRead()" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-[var(--foreground,#f8fafc)] px-2.5 py-1 rounded border border-[var(--border,#334155)] transition">
+              Mark all resolved
+            </button>
+            <button onclick="simulateInvoiceScenario()" class="text-xs bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 px-3 py-1 rounded transition flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <span>Test Alert Trigger</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Alerts List -->
+        <div id="alertsContainer" class="mt-4 space-y-3">
+          <!-- Dynamically populated alerts -->
+        </div>
+      </div>
+
+      <!-- Cash Flow Interactive Forecast Chart & Simulator Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Chart (2 Cols) -->
+        <div class="lg:col-span-2 bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-base font-semibold text-[var(--foreground,#f8fafc)] flex items-center gap-2">
+                  <span>Cash Flow Trajectory (Actual + 90-Day Forecast)</span>
+                </h3>
+                <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Solid line: verified bank balance | Dashed line: projected cash flow with expected invoices</p>
+              </div>
+              <!-- Chart Controls -->
+              <div class="flex items-center gap-2">
+                <div class="inline-flex rounded-lg bg-[var(--background,#0f172a)] p-1 border border-[var(--border,#334155)] text-xs">
+                  <button onclick="setChartTimeframe('30d')" id="chart-tf-30d" class="px-2.5 py-1 rounded-md text-[var(--muted-foreground,#94a3b8)] hover:text-white transition">30d</button>
+                  <button onclick="setChartTimeframe('90d')" id="chart-tf-90d" class="px-2.5 py-1 rounded-md bg-blue-600 text-white font-medium transition">90d Forecast</button>
+                  <button onclick="setChartTimeframe('6m')" id="chart-tf-6m" class="px-2.5 py-1 rounded-md text-[var(--muted-foreground,#94a3b8)] hover:text-white transition">6 Mo</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interactive SVG Cash Flow Chart Canvas -->
+            <div class="relative w-full h-64 sm:h-72 bg-[var(--background,#0f172a)]/40 rounded-xl p-3 border border-[var(--border,#334155)]/60 flex items-center justify-center">
+              <svg id="cashflowSvgChart" class="w-full h-full overflow-visible" viewBox="0 0 700 240">
+                <!-- SVG Chart rendered dynamically via JS -->
+              </svg>
+              <!-- Chart Tooltip -->
+              <div id="chartTooltip" class="hidden absolute pointer-events-none bg-slate-900/95 text-white text-xs rounded-lg py-1.5 px-3 border border-slate-700 shadow-xl backdrop-blur-md z-20">
+                <!-- Tooltip text -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Footer Legend & Insights -->
+          <div class="mt-4 pt-3 border-t border-[var(--border,#334155)]/70 flex flex-wrap items-center justify-between text-xs gap-3">
+            <div class="flex items-center gap-4 text-[var(--muted-foreground,#94a3b8)]">
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-0.5 bg-blue-500 rounded-full inline-block"></span>
+                <span>Historical Balance</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-0.5 border-b-2 border-dashed border-emerald-400 inline-block"></span>
+                <span>Projected Balance</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-0.5 border-b-2 border-dotted border-red-400 inline-block"></span>
+                <span>Safety Buffer ($5k)</span>
+              </div>
+            </div>
+            <div class="text-emerald-400 font-medium flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Cash runway stays above safety buffer for 90+ days</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Runway Simulator & Scenario Sandbox (1 Col) -->
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-semibold text-[var(--foreground,#f8fafc)] flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                <span>Runway Simulator</span>
+              </h3>
+              <span class="text-[12px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">What-If?</span>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mb-4">
+              Stress-test your freelance runway against delayed payments and unexpected expense spikes.
+            </p>
+
+            <div class="space-y-4 text-xs">
+              <!-- Slider 1: Late Payment Delay -->
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span class="text-[var(--foreground,#f8fafc)] font-medium">Pending Client Delay:</span>
+                  <span id="sliderDelayVal" class="text-amber-400 font-semibold font-mono">0 Days Late</span>
+                </div>
+                <input id="sliderDelay" type="range" min="0" max="60" value="0" step="5" oninput="updateSimulator()" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                <span class="text-[var(--muted-foreground,#94a3b8)] text-[12px]">Simulates all clients withholding payment for X days</span>
+              </div>
+
+              <!-- Slider 2: Monthly Burn Rate Change -->
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span class="text-[var(--foreground,#f8fafc)] font-medium">Monthly Burn Rate:</span>
+                  <span id="sliderBurnVal" class="text-blue-400 font-semibold font-mono">$4,000 / mo</span>
+                </div>
+                <input id="sliderBurn" type="range" min="2000" max="8000" value="4000" step="250" oninput="updateSimulator()" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                <span class="text-[var(--muted-foreground,#94a3b8)] text-[12px]">Adjust your personal & business living expenses</span>
+              </div>
+
+              <!-- Slider 3: Safety Reserve Buffer -->
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span class="text-[var(--foreground,#f8fafc)] font-medium">Safety Buffer Floor:</span>
+                  <span id="sliderBufferVal" class="text-emerald-400 font-semibold font-mono">$5,000</span>
+                </div>
+                <input id="sliderBuffer" type="range" min="2000" max="15000" value="5000" step="500" oninput="updateSimulator()" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                <span class="text-[var(--muted-foreground,#94a3b8)] text-[12px]">Minimum emergency balance required</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Simulator Dynamic Output Box -->
+          <div class="mt-4 p-3.5 bg-[var(--background,#0f172a)]/80 rounded-xl border border-[var(--border,#334155)] space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-[var(--muted-foreground,#94a3b8)]">Simulated Runway:</span>
+              <span id="simRunwayOutput" class="text-sm font-bold text-emerald-400">6.2 Months</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-[var(--muted-foreground,#94a3b8)]">Zero-Cash Date:</span>
+              <span id="simZeroCashDate" class="font-medium text-[var(--foreground,#f8fafc)]">April 18, 2027</span>
+            </div>
+            <div id="simRiskBadge" class="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span id="simRiskText">Healthy runway. Low vulnerability to late payments.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Invoices & Quick Actions -->
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-semibold text-[var(--foreground,#f8fafc)]">Priority Receivables & Invoices</h3>
+            <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Current billing lifecycle and overdue chase tracking</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="switchTab('invoices')" class="text-xs text-blue-400 hover:text-blue-300 font-medium">View All Invoices &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Compact Invoices Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-[var(--border,#334155)] text-[var(--muted-foreground,#94a3b8)]">
+                <th class="py-2.5 px-3 font-medium">Invoice #</th>
+                <th class="py-2.5 px-3 font-medium">Client / Project</th>
+                <th class="py-2.5 px-3 font-medium">Due Date</th>
+                <th class="py-2.5 px-3 font-medium">Amount</th>
+                <th class="py-2.5 px-3 font-medium">Status & Aging</th>
+                <th class="py-2.5 px-3 font-medium text-right">Instant Action</th>
+              </tr>
+            </thead>
+            <tbody id="overviewInvoicesTableBody" class="divide-y divide-[var(--border,#334155)]/50">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SECTION 2: CASH FLOW DEEP DIVE TAB -->
+    <div id="content-cashflow" class="hidden space-y-6">
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-[var(--foreground,#f8fafc)]">Monthly Inflow vs Outflow Comparison</h2>
+            <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Historical cash collected vs business & living expenses</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="inline-block w-3 h-3 bg-emerald-500 rounded"></span>
+              <span class="text-[var(--foreground,#f8fafc)]">Cash In</span>
+              <span class="inline-block w-3 h-3 bg-rose-500 rounded ml-2"></span>
+              <span class="text-[var(--foreground,#f8fafc)]">Cash Out</span>
+              <span class="inline-block w-3 h-3 bg-blue-500 rounded ml-2"></span>
+              <span class="text-[var(--foreground,#f8fafc)]">Net Margin</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly Comparison Bar Chart -->
+        <div class="w-full h-72 bg-[var(--background,#0f172a)]/40 rounded-xl p-4 border border-[var(--border,#334155)]/60">
+          <svg id="monthlyBarChartSvg" class="w-full h-full" viewBox="0 0 700 240">
+            <!-- Rendered dynamically -->
+          </svg>
+        </div>
+
+        <!-- Monthly Data Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+          <div class="p-4 rounded-xl bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)]">
+            <span class="text-xs text-[var(--muted-foreground,#94a3b8)]">Average Monthly Inflow</span>
+            <div class="text-lg font-bold text-emerald-400 mt-1">$9,400.00</div>
+            <span class="text-[12px] text-emerald-500/80">&uarr; 12% vs prior quarter</span>
+          </div>
+          <div class="p-4 rounded-xl bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)]">
+            <span class="text-xs text-[var(--muted-foreground,#94a3b8)]">Average Monthly Burn</span>
+            <div class="text-lg font-bold text-rose-400 mt-1">$4,120.00</div>
+            <span class="text-[12px] text-[var(--muted-foreground,#94a3b8)]">Includes subscriptions & taxes</span>
+          </div>
+          <div class="p-4 rounded-xl bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)]">
+            <span class="text-xs text-[var(--muted-foreground,#94a3b8)]">Average Net Monthly Margin</span>
+            <div class="text-lg font-bold text-blue-400 mt-1">+$5,280.00 (56%)</div>
+            <span class="text-[12px] text-blue-400/80">Strong savings rate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: INVOICES TAB -->
+    <div id="content-invoices" class="hidden space-y-6">
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border,#334155)]">
+          <div>
+            <h2 class="text-lg font-bold text-[var(--foreground,#f8fafc)]">Invoice Management & Payment Tracking</h2>
+            <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Create, track, and chase invoices with automated 1-click reminders</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportInvoicesCsv()" class="text-xs px-3 py-1.5 rounded-lg border border-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] hover:bg-[var(--background,#0f172a)] transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>Export CSV</span>
+            </button>
+            <button onclick="openNewInvoiceModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-3.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>+ Create Invoice</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+          <!-- Status Tabs -->
+          <div class="flex flex-wrap items-center gap-1.5 text-xs">
+            <button onclick="filterInvoices('all')" id="inv-filter-all" class="inv-filter-btn px-3 py-1.5 rounded-lg font-medium bg-blue-600 text-white transition">All (<span id="count-all">0</span>)</button>
+            <button onclick="filterInvoices('overdue')" id="inv-filter-overdue" class="inv-filter-btn px-3 py-1.5 rounded-lg font-medium bg-[var(--background,#0f172a)] text-red-400 border border-red-500/30 hover:bg-red-500/10 transition">Overdue (<span id="count-overdue">0</span>)</button>
+            <button onclick="filterInvoices('pending')" id="inv-filter-pending" class="inv-filter-btn px-3 py-1.5 rounded-lg font-medium bg-[var(--background,#0f172a)] text-amber-400 border border-amber-500/30 hover:bg-amber-500/10 transition">Pending (<span id="count-pending">0</span>)</button>
+            <button onclick="filterInvoices('paid')" id="inv-filter-paid" class="inv-filter-btn px-3 py-1.5 rounded-lg font-medium bg-[var(--background,#0f172a)] text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition">Paid (<span id="count-paid">0</span>)</button>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="invoiceSearchInput" oninput="searchInvoices(this.value)" placeholder="Search client or invoice #..." class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <svg class="w-3.5 h-3.5 text-[var(--muted-foreground,#94a3b8)] absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+        </div>
+
+        <!-- Full Table -->
+        <div class="mt-4 overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-[var(--border,#334155)] text-[var(--muted-foreground,#94a3b8)] bg-[var(--background,#0f172a)]/40">
+                <th class="py-2.5 px-3 font-medium">Invoice Number</th>
+                <th class="py-2.5 px-3 font-medium">Client</th>
+                <th class="py-2.5 px-3 font-medium">Issued Date</th>
+                <th class="py-2.5 px-3 font-medium">Due Date</th>
+                <th class="py-2.5 px-3 font-medium">Amount</th>
+                <th class="py-2.5 px-3 font-medium">Status / Aging</th>
+                <th class="py-2.5 px-3 font-medium">Reminders Sent</th>
+                <th class="py-2.5 px-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fullInvoicesTableBody" class="divide-y divide-[var(--border,#334155)]/50">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: EXPENSES & SUBSCRIPTIONS TAB -->
+    <div id="content-expenses" class="hidden space-y-6">
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border,#334155)]">
+          <div>
+            <h2 class="text-lg font-bold text-[var(--foreground,#f8fafc)]">Freelance Overhead & Subscriptions</h2>
+            <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Track fixed software, coworking, hardware, and operational costs affecting cash flow</p>
+          </div>
+          <button onclick="openNewExpenseModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-3.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <span>+ Add Expense</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <!-- Expenses List (2 Cols) -->
+          <div class="lg:col-span-2 overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-[var(--border,#334155)] text-[var(--muted-foreground,#94a3b8)]">
+                  <th class="py-2.5 px-3 font-medium">Expense Item</th>
+                  <th class="py-2.5 px-3 font-medium">Category</th>
+                  <th class="py-2.5 px-3 font-medium">Cadence</th>
+                  <th class="py-2.5 px-3 font-medium">Next Due</th>
+                  <th class="py-2.5 px-3 font-medium">Cost</th>
+                  <th class="py-2.5 px-3 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="expensesTableBody" class="divide-y divide-[var(--border,#334155)]/50">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Expense Breakdown & Tips (1 Col) -->
+          <div class="p-4 bg-[var(--background,#0f172a)]/60 rounded-xl border border-[var(--border,#334155)] space-y-4">
+            <h4 class="font-semibold text-xs text-[var(--foreground,#f8fafc)]">Monthly Fixed Burn Summary</h4>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between py-1 border-b border-[var(--border,#334155)]/50">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Software & SaaS</span>
+                <span class="font-mono font-medium text-[var(--foreground,#f8fafc)]">$184.00</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-[var(--border,#334155)]/50">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Workspace & Office</span>
+                <span class="font-mono font-medium text-[var(--foreground,#f8fafc)]">$350.00</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-[var(--border,#334155)]/50">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Health & Insurance</span>
+                <span class="font-mono font-medium text-[var(--foreground,#f8fafc)]">$420.00</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-[var(--border,#334155)]/50">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Equipment & Hosting</span>
+                <span class="font-mono font-medium text-[var(--foreground,#f8fafc)]">$125.00</span>
+              </div>
+              <div class="flex justify-between pt-2 text-sm font-bold">
+                <span class="text-[var(--foreground,#f8fafc)]">Total Monthly Overhead</span>
+                <span class="font-mono text-rose-400">$1,079.00</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-300">
+              <strong class="block mb-1 font-semibold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Freelancer Rule of Thumb
+              </strong>
+              Keep your fixed monthly overhead below 20% of your minimum target revenue to weather dry payment seasons.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5: CLIENT HEALTH TAB -->
+    <div id="content-clients" class="hidden space-y-6">
+      <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl p-5 shadow-sm">
+        <div class="mb-6">
+          <h2 class="text-lg font-bold text-[var(--foreground,#f8fafc)]">Client Reliability & Revenue Concentration</h2>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">Identify slow payers and protect yourself against high client concentration risk</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="clientCardsContainer">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: NEW INVOICE -->
+  <div id="newInvoiceModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-[var(--border,#334155)]">
+        <h3 class="text-base font-bold text-[var(--foreground,#f8fafc)] flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Create New Invoice
+        </h3>
+        <button onclick="closeModal('newInvoiceModal')" class="text-[var(--muted-foreground,#94a3b8)] hover:text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="handleCreateInvoice(event)" class="mt-4 space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Invoice Number</label>
+            <input type="text" id="invNumInput" required class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Amount ($)</label>
+            <input type="number" step="0.01" min="1" id="invAmountInput" required placeholder="2500.00" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Client Name</label>
+            <input type="text" id="invClientInput" required placeholder="e.g. Acme Studio" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Client Email</label>
+            <input type="email" id="invEmailInput" required placeholder="billing@acme.com" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Project / Description</label>
+          <input type="text" id="invProjectInput" required placeholder="Brand Redesign Phase 2" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Payment Terms</label>
+            <select id="invTermsSelect" onchange="adjustDueDateFromTerms(this.value)" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+              <option value="14">Net 14 Days</option>
+              <option value="30" selected>Net 30 Days</option>
+              <option value="7">Net 7 Days</option>
+              <option value="0">Due on Receipt</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Due Date</label>
+            <input type="date" id="invDueDateInput" required class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2.5 text-[var(--foreground,#f8fafc)]">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-[var(--border,#334155)] flex items-center justify-end gap-2">
+          <button type="button" onclick="closeModal('newInvoiceModal')" class="px-4 py-2 rounded-lg border border-[var(--border,#334155)] text-[var(--muted-foreground,#94a3b8)] hover:text-white">Cancel</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded-lg shadow-sm">Save & Track Invoice</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: SEND PAYMENT REMINDER (CHASER) -->
+  <div id="reminderModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-[var(--border,#334155)]">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-lg bg-red-500/10 text-red-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-base font-bold text-[var(--foreground,#f8fafc)]">Send Payment Reminder</h3>
+        </div>
+        <button onclick="closeModal('reminderModal')" class="text-[var(--muted-foreground,#94a3b8)] hover:text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4 text-xs">
+        <!-- Target Info -->
+        <div class="bg-[var(--background,#0f172a)]/80 p-3 rounded-xl border border-[var(--border,#334155)] flex justify-between items-center">
+          <div>
+            <div class="font-bold text-[var(--foreground,#f8fafc)]" id="remClientName">Acme Corp</div>
+            <div class="text-[var(--muted-foreground,#94a3b8)]" id="remInvoiceRef">Invoice #INV-2024-042 • $2,400.00</div>
+          </div>
+          <span id="remStatusBadge" class="badge-overdue px-2 py-0.5 rounded text-[12px] font-bold">14 Days Overdue</span>
+        </div>
+
+        <!-- Tone selector -->
+        <div>
+          <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1 font-medium">Select Tone Template:</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setReminderTone('friendly')" id="tone-friendly" class="tone-btn px-2.5 py-1.5 rounded-lg border border-[var(--border,#334155)] text-center text-xs hover:border-blue-500 transition">
+              😊 Gentle / Early
+            </button>
+            <button onclick="setReminderTone('firm')" id="tone-firm" class="tone-btn px-2.5 py-1.5 rounded-lg border border-blue-500 bg-blue-600/20 text-blue-300 font-medium text-center text-xs transition">
+              ⚖️ Standard Follow-up
+            </button>
+            <button onclick="setReminderTone('urgent')" id="tone-urgent" class="tone-btn px-2.5 py-1.5 rounded-lg border border-[var(--border,#334155)] text-center text-xs hover:border-red-500 transition">
+              🚨 Urgent Notice
+            </button>
+          </div>
+        </div>
+
+        <!-- Email Preview -->
+        <div>
+          <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1 font-medium">Email Subject & Body Preview:</label>
+          <input type="text" id="remSubjectInput" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-t-lg p-2 text-[var(--foreground,#f8fafc)] font-medium">
+          <textarea id="remBodyTextarea" rows="6" class="w-full bg-[var(--background,#0f172a)] border border-t-0 border-[var(--border,#334155)] rounded-b-lg p-2.5 text-[var(--foreground,#f8fafc)] leading-relaxed focus:outline-none"></textarea>
+        </div>
+
+        <div class="pt-2 flex items-center justify-between">
+          <button onclick="copyReminderText()" class="text-xs px-3 py-1.5 rounded-lg border border-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] hover:bg-[var(--background,#0f172a)] flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            <span id="copyBtnLabel">Copy to Clipboard</span>
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="closeModal('reminderModal')" class="px-3 py-1.5 rounded-lg text-[var(--muted-foreground,#94a3b8)]">Cancel</button>
+            <button onclick="confirmSendReminder()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              <span>Record as Sent & Dispatch</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECORD PAYMENT -->
+  <div id="paymentModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl max-w-sm w-full p-6 shadow-2xl relative text-xs">
+      <h3 class="text-base font-bold text-[var(--foreground,#f8fafc)] flex items-center gap-2 mb-2">
+        <span class="p-1 rounded-md bg-emerald-500/20 text-emerald-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        </span>
+        Confirm Payment Received
+      </h3>
+      <p class="text-[var(--muted-foreground,#94a3b8)] mb-4">
+        This will immediately increase your liquid bank balance and update your cash runway forecast.
+      </p>
+
+      <div class="bg-[var(--background,#0f172a)]/80 p-3 rounded-xl border border-[var(--border,#334155)] space-y-1 mb-4">
+        <div class="text-[var(--foreground,#f8fafc)] font-bold text-sm" id="payModalInvoice">INV-2024-042</div>
+        <div class="text-[var(--muted-foreground,#94a3b8)]" id="payModalClient">Acme Corp</div>
+        <div class="text-emerald-400 font-bold text-base mt-1" id="payModalAmount">$2,400.00</div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Date Received</label>
+        <input type="date" id="payDateInput" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2 text-[var(--foreground,#f8fafc)]">
+      </div>
+
+      <div class="flex items-center justify-end gap-2">
+        <button onclick="closeModal('paymentModal')" class="px-3 py-1.5 rounded-lg text-[var(--muted-foreground,#94a3b8)]">Cancel</button>
+        <button onclick="confirmMarkAsPaid()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-1.5 rounded-lg shadow-sm">Mark Paid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW EXPENSE -->
+  <div id="newExpenseModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-xs">
+      <div class="flex items-center justify-between pb-3 border-b border-[var(--border,#334155)]">
+        <h3 class="text-base font-bold text-[var(--foreground,#f8fafc)]">Add Expense / Subscription</h3>
+        <button onclick="closeModal('newExpenseModal')" class="text-[var(--muted-foreground,#94a3b8)] hover:text-white">&times;</button>
+      </div>
+
+      <form onsubmit="handleCreateExpense(event)" class="mt-4 space-y-3">
+        <div>
+          <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Expense Name</label>
+          <input type="text" id="expNameInput" required placeholder="e.g. Figma Pro, Web Hosting, Co-working" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2 text-[var(--foreground,#f8fafc)]">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Amount ($)</label>
+            <input type="number" step="0.01" id="expAmountInput" required placeholder="45.00" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2 text-[var(--foreground,#f8fafc)]">
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Cadence</label>
+            <select id="expCadenceInput" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2 text-[var(--foreground,#f8fafc)]">
+              <option value="monthly">Monthly Recurring</option>
+              <option value="annual">Annual</option>
+              <option value="one-time">One-Time</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Category</label>
+            <select id="expCategoryInput" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2 text-[var(--foreground,#f8fafc)]">
+              <option value="Software">Software & Tools</option>
+              <option value="Workspace">Workspace & Office</option>
+              <option value="Health">Health & Insurance</option>
+              <option value="Equipment">Hardware & Equipment</option>
+              <option value="Marketing">Marketing & Ads</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground,#94a3b8)] mb-1">Next Payment Date</label>
+            <input type="date" id="expDateInput" required class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg p-2 text-[var(--foreground,#f8fafc)]">
+          </div>
+        </div>
+        <div class="pt-3 border-t border-[var(--border,#334155)] flex justify-end gap-2">
+          <button type="button" onclick="closeModal('newExpenseModal')" class="px-3 py-1.5 rounded-lg text-[var(--muted-foreground,#94a3b8)]">Cancel</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-1.5 rounded-lg">Add to Cash Flow</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ALERTS DRAWER (Slide-over) -->
+  <div id="alertsDrawer" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-end">
+    <div class="bg-[var(--card,#1e293b)] w-full max-w-md h-full border-l border-[var(--border,#334155)] p-5 flex flex-col justify-between shadow-2xl">
+      <div>
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--border,#334155)]">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <h3 class="font-bold text-[var(--foreground,#f8fafc)] text-base">Payment & Liquidity Alerts</h3>
+          </div>
+          <button onclick="toggleAlertsDrawer()" class="text-[var(--muted-foreground,#94a3b8)] hover:text-white p-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div id="drawerAlertsList" class="mt-4 space-y-3 overflow-y-auto max-h-[75vh] pr-1">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-[var(--border,#334155)] flex justify-between items-center text-xs">
+        <button onclick="resetDemoData()" class="text-[var(--muted-foreground,#94a3b8)] hover:text-white underline">Reset Demo Data</button>
+        <button onclick="toggleAlertsDrawer()" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs">
+    <span id="toastIcon" class="text-emerald-400">✓</span>
+    <span id="toastMessage">Action completed successfully</span>
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    // --- APP STATE & INITIAL DATA ---
+    const STORAGE_KEY = 'pulseflow_freelancer_state_v1';
+
+    const DEFAULT_DATA = {
+      settings: {
+        currency: 'USD',
+        symbol: '$',
+        currentCash: 24850.00,
+        monthlyTarget: 10000.00,
+        taxReserveRate: 0.25,
+        safetyBuffer: 5000.00,
+        burnRate: 4000.00,
+        chartTimeframe: '90d'
+      },
+      invoices: [
+        {
+          id: 'inv-1',
+          number: 'INV-2024-042',
+          client: 'Acme Studio Corp',
+          email: 'billing@acmestudio.com',
+          project: 'E-commerce Redesign Sprint 2',
+          amount: 2400.00,
+          issueDate: '2026-09-12',
+          dueDate: '2026-09-27',
+          status: 'overdue',
+          paidDate: null,
+          remindersSent: 2,
+          lastReminder: '2026-10-02',
+          notes: 'Client promised payment by Monday.'
+        },
+        {
+          id: 'inv-2',
+          number: 'INV-2024-043',
+          client: 'HyperScale AI',
+          email: 'finance@hyperscale.ai',
+          project: 'Design System & Figma Tokens',
+          amount: 850.00,
+          issueDate: '2026-09-20',
+          dueDate: '2026-10-04',
+          status: 'overdue',
+          paidDate: null,
+          remindersSent: 1,
+          lastReminder: '2026-10-05',
+          notes: 'PO approved, waiting on AP batch.'
+        },
+        {
+          id: 'inv-3',
+          number: 'INV-2024-044',
+          client: 'Nordic Labs',
+          email: 'accounts@nordiclabs.io',
+          project: 'Mobile App UX Audit & Prototyping',
+          amount: 3200.00,
+          issueDate: '2026-09-28',
+          dueDate: '2026-10-18',
+          status: 'pending',
+          paidDate: null,
+          remindersSent: 0,
+          lastReminder: null,
+          notes: 'Deliverable signed off.'
+        },
+        {
+          id: 'inv-4',
+          number: 'INV-2024-045',
+          client: 'Catalyst Partners',
+          email: 'invoices@catalystpartners.vc',
+          project: 'Monthly Advisory Retainer (Oct)',
+          amount: 3000.00,
+          issueDate: '2026-10-01',
+          dueDate: '2026-10-25',
+          status: 'pending',
+          paidDate: null,
+          remindersSent: 0,
+          lastReminder: null,
+          notes: 'Recurring retainer.'
+        },
+        {
+          id: 'inv-5',
+          number: 'INV-2024-046',
+          client: 'Bloom Health',
+          email: 'payables@bloomhealth.co',
+          project: 'Onboarding Flow Optimization',
+          amount: 2550.00,
+          issueDate: '2026-10-05',
+          dueDate: '2026-11-04',
+          status: 'pending',
+          paidDate: null,
+          remindersSent: 0,
+          lastReminder: null,
+          notes: 'Due in Net 30.'
+        },
+        {
+          id: 'inv-6',
+          number: 'INV-2024-040',
+          client: 'Vanguard Media',
+          email: 'accounts@vanguard.media',
+          project: 'Editorial Layout System',
+          amount: 4500.00,
+          issueDate: '2026-08-15',
+          dueDate: '2026-09-15',
+          status: 'paid',
+          paidDate: '2026-09-14',
+          remindersSent: 0,
+          lastReminder: null,
+          notes: 'Paid ahead of time via Stripe.'
+        },
+        {
+          id: 'inv-7',
+          number: 'INV-2024-039',
+          client: 'Apex Fintech',
+          email: 'billing@apexfintech.com',
+          project: 'Financial Dashboard UI Components',
+          amount: 6200.00,
+          issueDate: '2026-08-01',
+          dueDate: '2026-08-31',
+          status: 'paid',
+          paidDate: '2026-08-30',
+          remindersSent: 0,
+          lastReminder: null,
+          notes: 'Wire transfer received.'
+        }
+      ],
+      expenses: [
+        { id: 'exp-1', name: 'WeWork Hot Desk & Meeting Space', category: 'Workspace', amount: 350.00, cadence: 'monthly', dueDate: '2026-10-15' },
+        { id: 'exp-2', name: 'Adobe Creative Cloud + Figma Enterprise', category: 'Software', amount: 135.00, cadence: 'monthly', dueDate: '2026-10-18' },
+        { id: 'exp-3', name: 'Freelancer Private Health & Dental', category: 'Health', amount: 420.00, cadence: 'monthly', dueDate: '2026-10-22' },
+        { id: 'exp-4', name: 'AWS & Vercel Pro Cloud Hosting', category: 'Equipment', amount: 49.00, cadence: 'monthly', dueDate: '2026-10-25' },
+        { id: 'exp-5', name: 'GSuite & 1Password & Loom', category: 'Software', amount: 42.00, cadence: 'monthly', dueDate: '2026-10-28' },
+        { id: 'exp-6', name: 'Annual Accounting & Tax Filing Prep', category: 'Marketing', amount: 650.00, cadence: 'annual', dueDate: '2026-11-15' }
+      ]
+    };
+
+    // Global in-memory state
+    let state = loadState();
+    let currentActiveTab = 'overview';
+    let currentInvoiceFilter = 'all';
+    let currentInvoiceSearch = '';
+    let selectedInvoiceForAction = null;
+    let selectedTone = 'firm';
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to load state from localStorage', e);
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error('Failed to save state', e);
+      }
+      renderAll();
+    }
+
+    function resetDemoData() {
+      state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      saveState();
+      showToast('Demo data reset successfully', '✓');
+    }
+
+    // --- CURRENCY FORMATTER ---
+    function formatMoney(amount) {
+      const sym = state.settings.symbol || '$';
+      return sym + Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function changeCurrency(curr) {
+      state.settings.currency = curr;
+      const symbols = { 'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'CA$', 'AUD': 'AU$' };
+      state.settings.symbol = symbols[curr] || '$';
+      saveState();
+      showToast(`Currency changed to ${curr}`, '💱');
+    }
+
+    // --- DATE HELPERS ---
+    const TODAY = new Date('2026-10-11T00:00:00');
+
+    function getDaysDifference(dateString) {
+      const target = new Date(dateString + 'T00:00:00');
+      const diffTime = target.getTime() - TODAY.getTime();
+      return Math.round(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '—';
+      const d = new Date(dateString + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // --- CORE CALCULATIONS ---
+    function calculateMetrics() {
+      // Liquid cash
+      const liquid = state.settings.currentCash;
+
+      // Pending invoices
+      const pendingInvoices = state.invoices.filter(i => i.status === 'pending');
+      const overdueInvoices = state.invoices.filter(i => i.status === 'overdue');
+
+      const expectedInflow = pendingInvoices.reduce((acc, i) => acc + i.amount, 0);
+      const overdueAmount = overdueInvoices.reduce((acc, i) => acc + i.amount, 0);
+
+      // Tax reserve
+      const taxReserve = liquid * state.settings.taxReserveRate;
+      const safeToSpend = liquid - taxReserve - state.settings.safetyBuffer;
+
+      // Monthly burn rate
+      const monthlyFixedOverhead = state.expenses
+        .filter(e => e.cadence === 'monthly')
+        .reduce((acc, e) => acc + e.amount, 0);
+      
+      const totalBurn = state.settings.burnRate || 4000;
+      const runwayMonths = (liquid / totalBurn).toFixed(1);
+
+      return {
+        liquid,
+        runwayMonths,
+        expectedInflow,
+        pendingCount: pendingInvoices.length,
+        overdueAmount,
+        overdueCount: overdueInvoices.length,
+        taxReserve,
+        safeToSpend: Math.max(0, safeToSpend),
+        monthlyFixedOverhead,
+        totalBurn
+      };
+    }
+
+    // Generate dynamic payment alerts
+    function generateAlerts() {
+      const alerts = [];
+      const overdue = state.invoices.filter(i => i.status === 'overdue');
+      const pending = state.invoices.filter(i => i.status === 'pending');
+
+      // 1. Overdue Alerts
+      overdue.forEach(inv => {
+        const daysLate = Math.abs(getDaysDifference(inv.dueDate));
+        alerts.push({
+          id: `alert-overdue-${inv.id}`,
+          type: 'overdue',
+          severity: daysLate > 10 ? 'critical' : 'warning',
+          title: `Overdue Invoice: ${inv.client}`,
+          message: `${inv.number} for ${formatMoney(inv.amount)} is ${daysLate} days past due (${formatDate(inv.dueDate)}).`,
+          invoiceId: inv.id,
+          actionLabel: '1-Click Chase',
+          badge: `${daysLate}d Overdue`
+        });
+      });
+
+      // 2. Upcoming Invoices due within 7 days
+      pending.forEach(inv => {
+        const daysLeft = getDaysDifference(inv.dueDate);
+        if (daysLeft >= 0 && daysLeft <= 7) {
+          alerts.push({
+            id: `alert-upcoming-${inv.id}`,
+            type: 'upcoming',
+            severity: 'info',
+            title: `Payment Due Soon: ${inv.client}`,
+            message: `${inv.number} for ${formatMoney(inv.amount)} matures in ${daysLeft === 0 ? 'today' : daysLeft + ' days'}.`,
+            invoiceId: inv.id,
+            actionLabel: 'Send Friendly Ping',
+            badge: `${daysLeft}d Remaining`
+          });
+        }
+      });
+
+      // 3. Tax Reserve Alert
+      alerts.push({
+        id: 'alert-tax-reserve',
+        type: 'tax',
+        severity: 'info',
+        title: 'Quarterly Tax Withholding Guard',
+        message: `${formatMoney(state.settings.currentCash * state.settings.taxReserveRate)} is strictly locked for self-employment taxes. Do not transfer to personal spending.`,
+        actionLabel: 'Review Taxes',
+        badge: 'Safe-Harbor 25%'
+      });
+
+      // 4. Cash Flow Health
+      const metrics = calculateMetrics();
+      if (metrics.runwayMonths < 3) {
+        alerts.push({
+          id: 'alert-runway-low',
+          type: 'cash_dip',
+          severity: 'critical',
+          title: 'Cash Runway Warning',
+          message: `Your balance covers only ${metrics.runwayMonths} months of burn. Prioritize closing open retainers.`,
+          actionLabel: 'View Runway',
+          badge: 'Low Runway'
+        });
+      }
+
+      return alerts;
+    }
+
+    // --- TAB SWITCHING ---
+    function switchTab(tabId) {
+      currentActiveTab = tabId;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'text-blue-400');
+        btn.classList.add('text-[var(--muted-foreground,#94a3b8)]');
+      });
+
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-[var(--muted-foreground,#94a3b8)]');
+        activeBtn.classList.add('bg-blue-600', 'text-white');
+      }
+
+      const tabs = ['overview', 'cashflow', 'invoices', 'expenses', 'clients'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`content-${t}`);
+        if (el) {
+          if (t === tabId) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        }
+      });
+
+      if (tabId === 'cashflow') renderMonthlyBarChart();
+      if (tabId === 'clients') renderClientHealth();
+    }
+
+    // --- RENDER KPI CARDS ---
+    function renderKPIs() {
+      const m = calculateMetrics();
+      document.getElementById('kpiLiquidBalance').textContent = formatMoney(m.liquid);
+      document.getElementById('kpiRunwayMonths').textContent = `${m.runwayMonths} Months Runway`;
+      document.getElementById('kpiExpectedInflow').textContent = formatMoney(m.expectedInflow);
+      document.getElementById('kpiPendingCount').textContent = `${m.pendingCount} Invoices Scheduled`;
+      document.getElementById('kpiOverdueCount').textContent = `${m.overdueCount} Invoices`;
+      document.getElementById('kpiOverdueAmount').textContent = formatMoney(m.overdueAmount);
+      document.getElementById('kpiTaxReserve').textContent = formatMoney(m.taxReserve);
+      document.getElementById('kpiSafeToSpend').textContent = formatMoney(m.safeToSpend);
+
+      // Invoice badge on tab
+      const invBadge = document.getElementById('invoiceBadgeCount');
+      if (invBadge) invBadge.textContent = m.overdueCount;
+
+      // Alerts counter
+      const totalAlerts = generateAlerts();
+      const bellBadge = document.getElementById('alertsTotalBadge');
+      if (bellBadge) bellBadge.textContent = totalAlerts.length;
+
+      // Urgent Banner
+      const banner = document.getElementById('urgentAlertBanner');
+      if (m.overdueCount > 0) {
+        banner.classList.remove('hidden');
+        document.getElementById('urgentAlertCount').textContent = `${m.overdueCount} Overdue Invoices Need Immediate Attention`;
+        document.getElementById('urgentAlertText').textContent = `— Total overdue receivables: ${formatMoney(m.overdueAmount)}`;
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    // --- RENDER ALERTS FEED ---
+    function renderAlertsFeed() {
+      const alerts = generateAlerts();
+      const container = document.getElementById('alertsContainer');
+      const drawerContainer = document.getElementById('drawerAlertsList');
+
+      let html = '';
+      if (alerts.length === 0) {
+        html = `<div class="p-4 text-center text-xs text-[var(--muted-foreground,#94a3b8)]">All payments up to date! No alerts right now.</div>`;
+      } else {
+        html = alerts.map(a => {
+          let borderClass = 'border-blue-500/30 bg-blue-500/5';
+          let badgeClass = 'bg-blue-500/20 text-blue-300';
+          let iconSvg = `<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+
+          if (a.severity === 'critical') {
+            borderClass = 'border-red-500/40 bg-red-500/10';
+            badgeClass = 'bg-red-500/20 text-red-400 font-semibold';
+            iconSvg = `<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+          } else if (a.severity === 'warning') {
+            borderClass = 'border-amber-500/40 bg-amber-500/10';
+            badgeClass = 'bg-amber-500/20 text-amber-400 font-semibold';
+            iconSvg = `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+          }
+
+          const actionBtn = a.invoiceId 
+            ? `<button onclick="openReminderForInvoice('${a.invoiceId}')" class="px-2.5 py-1 rounded bg-[var(--background,#0f172a)] hover:bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] text-xs font-medium transition flex items-center gap-1 shadow-sm">
+                <span>${a.actionLabel}</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+               </button>`
+            : '';
+
+          return `
+            <div class="p-3 rounded-xl border ${borderClass} flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition">
+              <div class="flex items-start gap-2.5">
+                <span class="mt-0.5">${iconSvg}</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-xs text-[var(--foreground,#f8fafc)]">${a.title}</span>
+                    <span class="text-[12px] px-1.5 py-0.2 rounded ${badgeClass}">${a.badge}</span>
+                  </div>
+                  <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-0.5">${a.message}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 self-end sm:self-auto">
+                ${actionBtn}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (container) container.innerHTML = html;
+      if (drawerContainer) drawerContainer.innerHTML = html;
+    }
+
+    // --- RENDER CASH FLOW SVG CHART ---
+    function renderCashFlowChart() {
+      const svg = document.getElementById('cashflowSvgChart');
+      if (!svg) return;
+
+      const currentBalance = state.settings.currentCash;
+      const buffer = state.settings.safetyBuffer;
+      const burnPerDay = (state.settings.burnRate || 4000) / 30;
+
+      // Construct 7 data points: 3 historical points (-30d, -15d, Today) + 4 projected points (+15d, +30d, +60d, +90d)
+      const pendingInflow = state.invoices.filter(i => i.status === 'pending' || i.status === 'overdue');
+      
+      const p15Inflow = pendingInflow.filter(i => getDaysDifference(i.dueDate) <= 15).reduce((a, b) => a + b.amount, 0);
+      const p30Inflow = pendingInflow.filter(i => getDaysDifference(i.dueDate) > 15 && getDaysDifference(i.dueDate) <= 30).reduce((a, b) => a + b.amount, 0);
+      const p60Inflow = 5500; // estimated future contract renewal
+      const p90Inflow = 6000;
+
+      const points = [
+        { label: '-30d (Sep 11)', x: 40,  yVal: currentBalance - 3500, type: 'actual' },
+        { label: '-15d (Sep 26)', x: 130, yVal: currentBalance - 1200, type: 'actual' },
+        { label: 'Today (Oct 11)', x: 220, yVal: currentBalance, type: 'actual' },
+        { label: '+15d (Oct 26)', x: 330, yVal: currentBalance - (burnPerDay * 15) + p15Inflow, type: 'projected' },
+        { label: '+30d (Nov 10)', x: 440, yVal: currentBalance - (burnPerDay * 30) + p15Inflow + p30Inflow, type: 'projected' },
+        { label: '+60d (Dec 10)', x: 550, yVal: currentBalance - (burnPerDay * 60) + p15Inflow + p30Inflow + p60Inflow, type: 'projected' },
+        { label: '+90d (Jan 10)', x: 650, yVal: currentBalance - (burnPerDay * 90) + p15Inflow + p30Inflow + p60Inflow + p90Inflow, type: 'projected' }
+      ];
+
+      // Min/Max Y normalization
+      const minY = 0;
+      const maxY = 38000;
+      const height = 200;
+      const getYPixel = (val) => height - ((val - minY) / (maxY - minY) * (height - 30)) - 15;
+
+      // Safety buffer Y line
+      const bufferY = getYPixel(buffer);
+
+      // Generate paths
+      const actualPoints = points.slice(0, 3);
+      const projPoints = points.slice(2);
+
+      let actualD = `M ${actualPoints[0].x} ${getYPixel(actualPoints[0].yVal)}`;
+      for (let i = 1; i < actualPoints.length; i++) {
+        actualD += ` L ${actualPoints[i].x} ${getYPixel(actualPoints[i].yVal)}`;
+      }
+
+      let projD = `M ${projPoints[0].x} ${getYPixel(projPoints[0].yVal)}`;
+      for (let i = 1; i < projPoints.length; i++) {
+        projD += ` L ${projPoints[i].x} ${getYPixel(projPoints[i].yVal)}`;
+      }
+
+      // Fill gradient area for projected
+      let areaD = `M ${actualPoints[0].x} ${height}` +
+        ` L ${actualPoints[0].x} ${getYPixel(actualPoints[0].yVal)}` +
+        ` L ${actualPoints[1].x} ${getYPixel(actualPoints[1].yVal)}` +
+        ` L ${actualPoints[2].x} ${getYPixel(actualPoints[2].yVal)}` +
+        ` L ${projPoints[1].x} ${getYPixel(projPoints[1].yVal)}` +
+        ` L ${projPoints[2].x} ${getYPixel(projPoints[2].yVal)}` +
+        ` L ${projPoints[3].x} ${getYPixel(projPoints[3].yVal)}` +
+        ` L ${projPoints[4].x} ${getYPixel(projPoints[4].yVal)}` +
+        ` L ${points[points.length - 1].x} ${height} Z`;
+
+      // Build SVG elements
+      svg.innerHTML = `
+        <defs>
+          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+          </linearGradient>
+          <linearGradient id="projGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#10b981" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Horizontal Grid Lines -->
+        <line x1="30" y1="${getYPixel(30000)}" x2="680" y2="${getYPixel(30000)}" stroke="#334155" stroke-dasharray="3,3" opacity="0.3"/>
+        <text x="30" y="${getYPixel(30000) - 4}" fill="#64748b" font-size="12px">$30k</text>
+
+        <line x1="30" y1="${getYPixel(20000)}" x2="680" y2="${getYPixel(20000)}" stroke="#334155" stroke-dasharray="3,3" opacity="0.3"/>
+        <text x="30" y="${getYPixel(20000) - 4}" fill="#64748b" font-size="12px">$20k</text>
+
+        <line x1="30" y1="${getYPixel(10000)}" x2="680" y2="${getYPixel(10000)}" stroke="#334155" stroke-dasharray="3,3" opacity="0.3"/>
+        <text x="30" y="${getYPixel(10000) - 4}" fill="#64748b" font-size="12px">$10k</text>
+
+        <!-- Safety Buffer Line ($5k) -->
+        <line x1="30" y1="${bufferY}" x2="680" y2="${bufferY}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.75"/>
+        <text x="590" y="${bufferY - 4}" fill="#ef4444" font-size="12px" font-weight="bold">Buffer Floor: $5,000</text>
+
+        <!-- Shaded Area -->
+        <path d="${areaD}" fill="url(#areaGradient)"/>
+
+        <!-- Historical Path (Solid Blue) -->
+        <path d="${actualD}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- Projected Path (Dashed Emerald) -->
+        <path d="${projD}" fill="none" stroke="#10b981" stroke-width="3" stroke-dasharray="6,5" stroke-linecap="round"/>
+
+        <!-- Vertical 'Today' divider line -->
+        <line x1="${points[2].x}" y1="20" x2="${points[2].x}" y2="${height}" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.5"/>
+        <text x="${points[2].x - 18}" y="15" fill="#3b82f6" font-size="12px" font-weight="bold">TODAY</text>
+
+        <!-- Data Points & Labels -->
+        ${points.map((pt) => {
+          const py = getYPixel(pt.yVal);
+          const color = pt.type === 'actual' ? '#3b82f6' : '#10b981';
+          return `
+            <g class="cursor-pointer group" onmouseenter="showChartTip(event, '${pt.label}', '${formatMoney(pt.yVal)}')" onmouseleave="hideChartTip()">
+              <circle cx="${pt.x}" cy="${py}" r="5" fill="${color}" stroke="#0f172a" stroke-width="2.5" class="transition group-hover:r-7"/>
+              <text x="${pt.x}" y="${height + 18}" text-anchor="middle" fill="#94a3b8" font-size="12px">${pt.label.split(' ')[0]}</text>
+            </g>
+          `;
+        }).join('')}
+      `;
+    }
+
+    function showChartTip(e, label, val) {
+      const tip = document.getElementById('chartTooltip');
+      tip.innerHTML = `<strong>${label}</strong><br><span class="text-emerald-400 font-mono">${val}</span>`;
+      tip.style.left = `${e.clientX - 60}px`;
+      tip.style.top = `${e.clientY - 60}px`;
+      tip.classList.remove('hidden');
+    }
+
+    function hideChartTip() {
+      const tip = document.getElementById('chartTooltip');
+      tip.classList.add('hidden');
+    }
+
+    function setChartTimeframe(tf) {
+      state.settings.chartTimeframe = tf;
+      ['30d', '90d', '6m'].forEach(t => {
+        const btn = document.getElementById(`chart-tf-${t}`);
+        if (btn) {
+          if (t === tf) {
+            btn.className = 'px-2.5 py-1 rounded-md bg-blue-600 text-white font-medium transition';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-md text-[var(--muted-foreground,#94a3b8)] hover:text-white transition';
+          }
+        }
+      });
+      renderCashFlowChart();
+    }
+
+    // --- SIMULATOR LOGIC ---
+    function updateSimulator() {
+      const delay = parseInt(document.getElementById('sliderDelay').value);
+      const burn = parseInt(document.getElementById('sliderBurn').value);
+      const buffer = parseInt(document.getElementById('sliderBuffer').value);
+
+      document.getElementById('sliderDelayVal').textContent = delay === 0 ? '0 Days (On-time)' : `${delay} Days Late`;
+      document.getElementById('sliderBurnVal').textContent = `$${burn.toLocaleString()} / mo`;
+      document.getElementById('sliderBufferVal').textContent = `$${buffer.toLocaleString()}`;
+
+      // Simulate new runway
+      const liquid = state.settings.currentCash;
+      const simRunway = (liquid / burn).toFixed(1);
+
+      document.getElementById('simRunwayOutput').textContent = `${simRunway} Months`;
+
+      // Calculate zero cash date approx
+      const zeroDate = new Date(TODAY);
+      zeroDate.setDate(zeroDate.getDate() + Math.round(simRunway * 30.5));
+      document.getElementById('simZeroCashDate').textContent = zeroDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+      const riskBadge = document.getElementById('simRiskBadge');
+      const riskText = document.getElementById('simRiskText');
+
+      if (simRunway < 2.5 || delay >= 45) {
+        riskBadge.className = 'p-2 rounded bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-1.5';
+        riskText.textContent = `High risk! A ${delay}d client delay exhausts buffer in ${(simRunway * 0.7).toFixed(1)} mo.`;
+      } else if (simRunway < 4.0 || delay >= 25) {
+        riskBadge.className = 'p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-1.5';
+        riskText.textContent = `Moderate vulnerability. Maintain strict Net-14 invoicing.`;
+      } else {
+        riskBadge.className = 'p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-1.5';
+        riskText.textContent = `Healthy runway. Low vulnerability to payment delays.`;
+      }
+    }
+
+    // --- RENDER INVOICES TABLES ---
+    function renderInvoicesTables() {
+      // 1. Overview Table (Top 4 priority)
+      const overviewTbody = document.getElementById('overviewInvoicesTableBody');
+      const sorted = [...state.invoices].sort((a, b) => {
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+        return new Date(a.dueDate) - new Date(b.dueDate);
+      });
+
+      const topPriority = sorted.slice(0, 4);
+      if (overviewTbody) {
+        overviewTbody.innerHTML = topPriority.map(inv => createInvoiceRowHtml(inv, true)).join('');
+      }
+
+      // 2. Full Invoices Table
+      renderFullInvoicesTable();
+    }
+
+    function renderFullInvoicesTable() {
+      const tbody = document.getElementById('fullInvoicesTableBody');
+      if (!tbody) return;
+
+      let filtered = [...state.invoices];
+
+      // Filter by status
+      if (currentInvoiceFilter !== 'all') {
+        filtered = filtered.filter(i => i.status === currentInvoiceFilter);
+      }
+
+      // Search query
+      if (currentInvoiceSearch.trim()) {
+        const q = currentInvoiceSearch.toLowerCase();
+        filtered = filtered.filter(i => 
+          i.number.toLowerCase().includes(q) ||
+          i.client.toLowerCase().includes(q) ||
+          i.project.toLowerCase().includes(q)
+        );
+      }
+
+      // Update counters
+      document.getElementById('count-all').textContent = state.invoices.length;
+      document.getElementById('count-overdue').textContent = state.invoices.filter(i => i.status === 'overdue').length;
+      document.getElementById('count-pending').textContent = state.invoices.filter(i => i.status === 'pending').length;
+      document.getElementById('count-paid').textContent = state.invoices.filter(i => i.status === 'paid').length;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-[var(--muted-foreground,#94a3b8)]">No invoices match your filter.</td></tr>`;
+      } else {
+        tbody.innerHTML = filtered.map(inv => createInvoiceRowHtml(inv, false)).join('');
+      }
+    }
+
+    function createInvoiceRowHtml(inv, isCompact) {
+      const daysDiff = getDaysDifference(inv.dueDate);
+      let statusBadge = '';
+
+      if (inv.status === 'paid') {
+        statusBadge = `<span class="badge-paid px-2 py-0.5 rounded font-semibold text-[12px]">Paid ${inv.paidDate ? formatDate(inv.paidDate) : ''}</span>`;
+      } else if (inv.status === 'overdue') {
+        const late = Math.abs(daysDiff);
+        statusBadge = `<span class="badge-overdue px-2 py-0.5 rounded font-semibold text-[12px] flex items-center gap-1 w-max">
+          <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          ${late}d Overdue
+        </span>`;
+      } else {
+        statusBadge = `<span class="badge-pending px-2 py-0.5 rounded font-semibold text-[12px]">Due in ${daysDiff}d</span>`;
+      }
+
+      let actionsHtml = '';
+      if (inv.status !== 'paid') {
+        actionsHtml = `
+          <div class="flex items-center justify-end gap-1.5">
+            <button onclick="openPaymentModal('${inv.id}')" title="Mark Paid" class="p-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            </button>
+            <button onclick="openReminderForInvoice('${inv.id}')" title="Send Payment Reminder" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium flex items-center gap-1 text-[12px]">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              <span>Remind</span>
+            </button>
+          </div>
+        `;
+      } else {
+        actionsHtml = `<span class="text-emerald-400 text-right block text-[12px] font-medium">✓ Settled</span>`;
+      }
+
+      if (isCompact) {
+        return `
+          <tr class="hover:bg-[var(--background,#0f172a)]/40 transition">
+            <td class="py-2.5 px-3 font-mono font-medium text-blue-400">${inv.number}</td>
+            <td class="py-2.5 px-3">
+              <div class="font-semibold text-[var(--foreground,#f8fafc)]">${inv.client}</div>
+              <div class="text-[var(--muted-foreground,#94a3b8)] text-[12px]">${inv.project}</div>
+            </td>
+            <td class="py-2.5 px-3 text-[var(--muted-foreground,#94a3b8)]">${formatDate(inv.dueDate)}</td>
+            <td class="py-2.5 px-3 font-bold font-mono text-[var(--foreground,#f8fafc)]">${formatMoney(inv.amount)}</td>
+            <td class="py-2.5 px-3">${statusBadge}</td>
+            <td class="py-2.5 px-3 text-right">${actionsHtml}</td>
+          </tr>
+        `;
+      }
+
+      return `
+        <tr class="hover:bg-[var(--background,#0f172a)]/40 transition">
+          <td class="py-2.5 px-3 font-mono font-medium text-blue-400">${inv.number}</td>
+          <td class="py-2.5 px-3">
+            <div class="font-semibold text-[var(--foreground,#f8fafc)]">${inv.client}</div>
+            <div class="text-[var(--muted-foreground,#94a3b8)] text-[12px]">${inv.email}</div>
+          </td>
+          <td class="py-2.5 px-3 text-[var(--muted-foreground,#94a3b8)]">${formatDate(inv.issueDate)}</td>
+          <td class="py-2.5 px-3 text-[var(--muted-foreground,#94a3b8)]">${formatDate(inv.dueDate)}</td>
+          <td class="py-2.5 px-3 font-bold font-mono text-[var(--foreground,#f8fafc)]">${formatMoney(inv.amount)}</td>
+          <td class="py-2.5 px-3">${statusBadge}</td>
+          <td class="py-2.5 px-3 text-[var(--muted-foreground,#94a3b8)]">
+            ${inv.remindersSent > 0 ? `<span class="bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded text-[12px]">${inv.remindersSent} Sent</span>` : '0'}
+          </td>
+          <td class="py-2.5 px-3 text-right">${actionsHtml}</td>
+        </tr>
+      `;
+    }
+
+    function filterInvoices(filter) {
+      currentInvoiceFilter = filter;
+      ['all', 'overdue', 'pending', 'paid'].forEach(f => {
+        const btn = document.getElementById(`inv-filter-${f}`);
+        if (btn) {
+          if (f === filter) {
+            btn.className = 'inv-filter-btn px-3 py-1.5 rounded-lg font-medium bg-blue-600 text-white transition';
+          } else {
+            btn.className = 'inv-filter-btn px-3 py-1.5 rounded-lg font-medium bg-[var(--background,#0f172a)] text-[var(--muted-foreground,#94a3b8)] border border-[var(--border,#334155)] hover:text-white transition';
+          }
+        }
+      });
+      renderFullInvoicesTable();
+    }
+
+    function searchInvoices(q) {
+      currentInvoiceSearch = q;
+      renderFullInvoicesTable();
+    }
+
+    // --- RENDER EXPENSES ---
+    function renderExpenses() {
+      const tbody = document.getElementById('expensesTableBody');
+      if (!tbody) return;
+
+      tbody.innerHTML = state.expenses.map(exp => `
+        <tr class="hover:bg-[var(--background,#0f172a)]/40 transition">
+          <td class="py-2.5 px-3 font-medium text-[var(--foreground,#f8fafc)]">${exp.name}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-[var(--muted-foreground,#94a3b8)] text-[12px] border border-slate-700">${exp.category}</span>
+          </td>
+          <td class="py-2.5 px-3 text-[var(--muted-foreground,#94a3b8)] capitalize">${exp.cadence}</td>
+          <td class="py-2.5 px-3 text-[var(--muted-foreground,#94a3b8)]">${formatDate(exp.dueDate)}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-rose-400">-${formatMoney(exp.amount)}</td>
+          <td class="py-2.5 px-3 text-right">
+            <button onclick="deleteExpense('${exp.id}')" class="text-red-400 hover:text-red-300 p-1 text-xs" title="Remove Expense">&times;</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function deleteExpense(id) {
+      state.expenses = state.expenses.filter(e => e.id !== id);
+      saveState();
+      showToast('Expense removed', '🗑️');
+    }
+
+    // --- RENDER CLIENT HEALTH & CONCENTRATION ---
+    function renderClientHealth() {
+      const container = document.getElementById('clientCardsContainer');
+      if (!container) return;
+
+      // Group totals per client
+      const clientStats = {};
+      state.invoices.forEach(inv => {
+        if (!clientStats[inv.client]) {
+          clientStats[inv.client] = {
+            name: inv.client,
+            email: inv.email,
+            totalBilled: 0,
+            paidAmount: 0,
+            pendingAmount: 0,
+            overdueAmount: 0,
+            invoicesCount: 0,
+            hasOverdue: false
+          };
+        }
+        clientStats[inv.client].totalBilled += inv.amount;
+        clientStats[inv.client].invoicesCount += 1;
+        if (inv.status === 'paid') clientStats[inv.client].paidAmount += inv.amount;
+        if (inv.status === 'pending') clientStats[inv.client].pendingAmount += inv.amount;
+        if (inv.status === 'overdue') {
+          clientStats[inv.client].overdueAmount += inv.amount;
+          clientStats[inv.client].hasOverdue = true;
+        }
+      });
+
+      const totalPortfolio = Object.values(clientStats).reduce((a, b) => a + b.totalBilled, 0) || 1;
+
+      container.innerHTML = Object.values(clientStats).map(c => {
+        const concentrationPct = Math.round((c.totalBilled / totalPortfolio) * 100);
+        let riskBadge = `<span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[12px] font-semibold">Reliable</span>`;
+        if (c.hasOverdue) {
+          riskBadge = `<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[12px] font-semibold">Delinquent</span>`;
+        } else if (concentrationPct >= 35) {
+          riskBadge = `<span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[12px] font-semibold">Concentration Risk</span>`;
+        }
+
+        return `
+          <div class="p-4 rounded-xl bg-[var(--background,#0f172a)]/70 border border-[var(--border,#334155)] space-y-3">
+            <div class="flex items-start justify-between">
+              <div>
+                <h4 class="font-bold text-sm text-[var(--foreground,#f8fafc)]">${c.name}</h4>
+                <p class="text-xs text-[var(--muted-foreground,#94a3b8)]">${c.email}</p>
+              </div>
+              ${riskBadge}
+            </div>
+
+            <div class="space-y-1.5 text-xs">
+              <div class="flex justify-between">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Total Billed:</span>
+                <span class="font-mono font-bold text-[var(--foreground,#f8fafc)]">${formatMoney(c.totalBilled)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Pending Receivables:</span>
+                <span class="font-mono text-amber-400">${formatMoney(c.pendingAmount + c.overdueAmount)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[var(--muted-foreground,#94a3b8)]">Portfolio Share:</span>
+                <span class="font-mono text-blue-400 font-bold">${concentrationPct}%</span>
+              </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-blue-500 h-full rounded-full" style="width: ${concentrationPct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- RENDER MONTHLY BAR CHART (DEEP DIVE) ---
+    function renderMonthlyBarChart() {
+      const svg = document.getElementById('monthlyBarChartSvg');
+      if (!svg) return;
+
+      const months = [
+        { name: 'May', in: 8200, out: 3800 },
+        { name: 'Jun', in: 9500, out: 4100 },
+        { name: 'Jul', in: 7800, out: 3950 },
+        { name: 'Aug', in: 11400, out: 4300 },
+        { name: 'Sep', in: 10200, out: 4050 },
+        { name: 'Oct (Est)', in: 9350, out: 4200 }
+      ];
+
+      const maxVal = 14000;
+      const height = 180;
+      const startX = 60;
+      const stepX = 100;
+
+      svg.innerHTML = `
+        <!-- Horizontal grid line -->
+        <line x1="40" y1="30" x2="680" y2="30" stroke="#334155" stroke-dasharray="3,3" opacity="0.3"/>
+        <line x1="40" y1="100" x2="680" y2="100" stroke="#334155" stroke-dasharray="3,3" opacity="0.3"/>
+        <line x1="40" y1="170" x2="680" y2="170" stroke="#334155" opacity="0.5"/>
+
+        ${months.map((m, idx) => {
+          const x = startX + (idx * stepX);
+          const inH = (m.in / maxVal) * 140;
+          const outH = (m.out / maxVal) * 140;
+
+          return `
+            <g class="cursor-pointer">
+              <!-- In Bar (Emerald) -->
+              <rect x="${x}" y="${170 - inH}" width="20" height="${inH}" fill="#10b981" rx="3"/>
+              <!-- Out Bar (Rose) -->
+              <rect x="${x + 24}" y="${170 - outH}" width="20" height="${outH}" fill="#f43f5e" rx="3"/>
+              <!-- Label -->
+              <text x="${x + 22}" y="195" text-anchor="middle" fill="#94a3b8" font-size="12px">${m.name}</text>
+              <text x="${x + 10}" y="${162 - inH}" text-anchor="middle" fill="#10b981" font-size="12px font-mono">$${(m.in / 1000).toFixed(1)}k</text>
+            </g>
+          `;
+        }).join('')}
+      `;
+    }
+
+    // --- MODAL & REMINDER CHASER LOGIC ---
+    function openNewInvoiceModal() {
+      // Auto-generate invoice number
+      const nextNum = 'INV-2024-0' + (state.invoices.length + 41);
+      document.getElementById('invNumInput').value = nextNum;
+      document.getElementById('invAmountInput').value = '';
+      document.getElementById('invClientInput').value = '';
+      document.getElementById('invEmailInput').value = '';
+      document.getElementById('invProjectInput').value = '';
+      adjustDueDateFromTerms(30);
+      document.getElementById('newInvoiceModal').classList.remove('hidden');
+    }
+
+    function adjustDueDateFromTerms(days) {
+      const d = new Date(TODAY);
+      d.setDate(d.getDate() + parseInt(days));
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      document.getElementById('invDueDateInput').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function handleCreateInvoice(e) {
+      e.preventDefault();
+      const newInv = {
+        id: 'inv-' + Date.now(),
+        number: document.getElementById('invNumInput').value.trim(),
+        client: document.getElementById('invClientInput').value.trim(),
+        email: document.getElementById('invEmailInput').value.trim(),
+        project: document.getElementById('invProjectInput').value.trim(),
+        amount: parseFloat(document.getElementById('invAmountInput').value),
+        issueDate: TODAY.toISOString().split('T')[0],
+        dueDate: document.getElementById('invDueDateInput').value,
+        status: 'pending',
+        paidDate: null,
+        remindersSent: 0,
+        lastReminder: null,
+        notes: ''
+      };
+
+      state.invoices.unshift(newInv);
+      saveState();
+      closeModal('newInvoiceModal');
+      showToast(`Invoice ${newInv.number} created and added to cash flow!`, '🚀');
+    }
+
+    function openReminderForInvoice(invoiceId) {
+      selectedInvoiceForAction = state.invoices.find(i => i.id === invoiceId);
+      if (!selectedInvoiceForAction) return;
+
+      const inv = selectedInvoiceForAction;
+      document.getElementById('remClientName').textContent = inv.client;
+      document.getElementById('remInvoiceRef').textContent = `${inv.number} • ${formatMoney(inv.amount)} • Due: ${formatDate(inv.dueDate)}`;
+
+      const badge = document.getElementById('remStatusBadge');
+      const daysDiff = getDaysDifference(inv.dueDate);
+      if (inv.status === 'overdue') {
+        badge.className = 'badge-overdue px-2 py-0.5 rounded text-[12px] font-bold';
+        badge.textContent = `${Math.abs(daysDiff)} Days Overdue`;
+        setReminderTone('urgent');
+      } else {
+        badge.className = 'badge-pending px-2 py-0.5 rounded text-[12px] font-bold';
+        badge.textContent = `Due in ${daysDiff} Days`;
+        setReminderTone('friendly');
+      }
+
+      document.getElementById('reminderModal').classList.remove('hidden');
+    }
+
+    function setReminderTone(tone) {
+      selectedTone = tone;
+      ['friendly', 'firm', 'urgent'].forEach(t => {
+        const btn = document.getElementById(`tone-${t}`);
+        if (btn) {
+          if (t === tone) {
+            btn.className = 'tone-btn px-2.5 py-1.5 rounded-lg border border-blue-500 bg-blue-600/20 text-blue-300 font-medium text-center text-xs transition';
+          } else {
+            btn.className = 'tone-btn px-2.5 py-1.5 rounded-lg border border-[var(--border,#334155)] text-center text-xs text-[var(--muted-foreground,#94a3b8)] hover:border-blue-500 transition';
+          }
+        }
+      });
+
+      const inv = selectedInvoiceForAction;
+      if (!inv) return;
+
+      const subInput = document.getElementById('remSubjectInput');
+      const bodyInput = document.getElementById('remBodyTextarea');
+
+      if (tone === 'friendly') {
+        subInput.value = `Friendly check-in regarding Invoice ${inv.number} (${inv.client})`;
+        bodyInput.value = `Hi ${inv.client} Team,\n\nI hope you're having a productive week! Just a friendly reminder that invoice ${inv.number} for ${formatMoney(inv.amount)} is scheduled for payment on ${formatDate(inv.dueDate)}.\n\nPlease let me know if you need any additional PO information or payment details.\n\nBest regards,\nAlex Morgan — Freelance Design & Engineering`;
+      } else if (tone === 'firm') {
+        subInput.value = `Payment Follow-up: Invoice ${inv.number} (${formatMoney(inv.amount)})`;
+        bodyInput.value = `Dear Accounts Payable / ${inv.client},\n\nI am writing to follow up on Invoice ${inv.number} for the amount of ${formatMoney(inv.amount)}, which matured on ${formatDate(inv.dueDate)}.\n\nCould you please confirm if this invoice has been queued in your next payment batch? I have re-attached the invoice specification for convenience.\n\nThank you for your prompt confirmation.\n\nAlex Morgan`;
+      } else {
+        subInput.value = `URGENT NOTICE: Overdue Payment for Invoice ${inv.number} (${inv.client})`;
+        bodyInput.value = `Attention: Billing & Finance Department,\n\nOur records indicate that Invoice ${inv.number} (${formatMoney(inv.amount)}) is now significantly past due (${Math.abs(getDaysDifference(inv.dueDate))} days overdue).\n\nPlease provide immediate remittance advice or a wire transfer confirmation today to keep our project accounts in good standing.\n\nDirect wire details are specified on the invoice.\n\nAlex Morgan`;
+      }
+    }
+
+    function copyReminderText() {
+      const subject = document.getElementById('remSubjectInput').value;
+      const body = document.getElementById('remBodyTextarea').value;
+      const fullText = `Subject: ${subject}\n\n${body}`;
+      navigator.clipboard.writeText(fullText).then(() => {
+        const label = document.getElementById('copyBtnLabel');
+        label.textContent = 'Copied!';
+        setTimeout(() => { label.textContent = 'Copy to Clipboard'; }, 2000);
+        showToast('Email draft copied to clipboard', '📋');
+      });
+    }
+
+    function confirmSendReminder() {
+      if (!selectedInvoiceForAction) return;
+      selectedInvoiceForAction.remindersSent = (selectedInvoiceForAction.remindersSent || 0) + 1;
+      selectedInvoiceForAction.lastReminder = TODAY.toISOString().split('T')[0];
+      saveState();
+      closeModal('reminderModal');
+      showToast(`Reminder logged for ${selectedInvoiceForAction.client} (${selectedInvoiceForAction.remindersSent} total sent)`, '✉️');
+    }
+
+    function openRemindersForOverdue() {
+      const overdue = state.invoices.find(i => i.status === 'overdue');
+      if (overdue) openReminderForInvoice(overdue.id);
+    }
+
+    // --- RECORD PAYMENT MODAL ---
+    function openPaymentModal(invoiceId) {
+      selectedInvoiceForAction = state.invoices.find(i => i.id === invoiceId);
+      if (!selectedInvoiceForAction) return;
+
+      document.getElementById('payModalInvoice').textContent = selectedInvoiceForAction.number;
+      document.getElementById('payModalClient').textContent = selectedInvoiceForAction.client;
+      document.getElementById('payModalAmount').textContent = formatMoney(selectedInvoiceForAction.amount);
+      document.getElementById('payDateInput').value = TODAY.toISOString().split('T')[0];
+
+      document.getElementById('paymentModal').classList.remove('hidden');
+    }
+
+    function confirmMarkAsPaid() {
+      if (!selectedInvoiceForAction) return;
+      const payDate = document.getElementById('payDateInput').value || TODAY.toISOString().split('T')[0];
+      
+      selectedInvoiceForAction.status = 'paid';
+      selectedInvoiceForAction.paidDate = payDate;
+      state.settings.currentCash += selectedInvoiceForAction.amount;
+
+      saveState();
+      closeModal('paymentModal');
+      showToast(`Payment of ${formatMoney(selectedInvoiceForAction.amount)} recorded! Cash balance updated.`, '💰');
+    }
+
+    // --- EXPENSE CREATION ---
+    function openNewExpenseModal() {
+      document.getElementById('expNameInput').value = '';
+      document.getElementById('expAmountInput').value = '';
+      document.getElementById('expDateInput').value = TODAY.toISOString().split('T')[0];
+      document.getElementById('newExpenseModal').classList.remove('hidden');
+    }
+
+    function handleCreateExpense(e) {
+      e.preventDefault();
+      const newExp = {
+        id: 'exp-' + Date.now(),
+        name: document.getElementById('expNameInput').value.trim(),
+        amount: parseFloat(document.getElementById('expAmountInput').value),
+        cadence: document.getElementById('expCadenceInput').value,
+        category: document.getElementById('expCategoryInput').value,
+        dueDate: document.getElementById('expDateInput').value
+      };
+
+      state.expenses.push(newExp);
+      saveState();
+      closeModal('newExpenseModal');
+      showToast(`Expense "${newExp.name}" added to burn tracker`, '📉');
+    }
+
+    // --- CSV EXPORT ---
+    function exportInvoicesCsv() {
+      let csv = 'Invoice Number,Client,Email,Project,Amount,Issue Date,Due Date,Status,Paid Date,Reminders Sent\n';
+      state.invoices.forEach(i => {
+        csv += `"${i.number}","${i.client}","${i.email}","${i.project}",${i.amount},"${i.issueDate}","${i.dueDate}","${i.status}","${i.paidDate || ''}",${i.remindersSent}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `freelance-invoices-${TODAY.toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported CSV file', '📊');
+    }
+
+    // --- DRAWER & BANNER ---
+    function toggleAlertsDrawer() {
+      const drawer = document.getElementById('alertsDrawer');
+      drawer.classList.toggle('hidden');
+    }
+
+    function dismissBanner() {
+      document.getElementById('urgentAlertBanner').classList.add('hidden');
+    }
+
+    function markAllAlertsRead() {
+      showToast('All priority alerts dismissed for this session', '✓');
+    }
+
+    function simulateInvoiceScenario() {
+      // Create a simulated urgent overdue alert
+      const testNum = 'INV-SIM-' + Math.floor(Math.random() * 900 + 100);
+      state.invoices.unshift({
+        id: 'inv-sim-' + Date.now(),
+        number: testNum,
+        client: 'Fintech Surge Ltd',
+        email: 'accounts@fintechsurge.com',
+        project: 'API Integration Design Phase',
+        amount: 3800.00,
+        issueDate: '2026-09-01',
+        dueDate: '2026-09-20',
+        status: 'overdue',
+        paidDate: null,
+        remindersSent: 0,
+        lastReminder: null,
+        notes: 'Simulated overdue event'
+      });
+      saveState();
+      showToast(`Triggered new alert for overdue invoice ${testNum}!`, '⚡');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function showToast(msg, icon = '✓') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMessage').textContent = msg;
+      document.getElementById('toastIcon').textContent = icon;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+
+    // --- MASTER RENDER ---
+    function renderAll() {
+      renderKPIs();
+      renderAlertsFeed();
+      renderCashFlowChart();
+      renderInvoicesTables();
+      renderExpenses();
+      renderClientHealth();
+      updateSimulator();
+    }
+
+    // Initial boot
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set currency selector
+      const sel = document.getElementById('currencySelector');
+      if (sel) sel.value = state.settings.currency || 'USD';
+      renderAll();
+    });
+  </script>
+</body>
+</html>
